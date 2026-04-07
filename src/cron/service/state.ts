@@ -145,7 +145,15 @@ export function createCronServiceState(deps: CronServiceDeps): CronServiceState 
 
 /** Format a millisecond timestamp as an ISO string for human-readable log output. */
 export function formatMsToIso(ms: number | undefined): string | undefined {
-  return typeof ms === "number" && Number.isFinite(ms) ? new Date(ms).toISOString() : undefined;
+  if (typeof ms !== "number" || !Number.isFinite(ms)) {
+    return undefined;
+  }
+  const d = new Date(ms);
+  // Guard against out-of-range timestamps that would throw RangeError
+  if (Number.isNaN(d.getTime())) {
+    return undefined;
+  }
+  return d.toISOString();
 }
 
 export type CronRunMode = "due" | "force";
