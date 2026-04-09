@@ -605,19 +605,52 @@ describe("firecrawl tools", () => {
     expect(resolveFirecrawlApiKey(cfg)).toBeUndefined();
   });
 
-  it("only allows the official Firecrawl API host for fetch endpoints", () => {
+  it("allows the official Firecrawl API host", () => {
     expect(firecrawlClientTesting.resolveEndpoint("https://api.firecrawl.dev", "/v2/scrape")).toBe(
       "https://api.firecrawl.dev/v2/scrape",
     );
+  });
+
+  it("requires https for public hosts", () => {
     expect(() =>
       firecrawlClientTesting.resolveEndpoint("http://api.firecrawl.dev", "/v2/scrape"),
-    ).toThrow("Firecrawl baseUrl must use https.");
+    ).toThrow("Firecrawl baseUrl must use https for public hosts");
     expect(() =>
-      firecrawlClientTesting.resolveEndpoint("https://127.0.0.1:8787", "/v2/scrape"),
-    ).toThrow("Firecrawl baseUrl host is not allowed");
-    expect(() =>
-      firecrawlClientTesting.resolveEndpoint("https://attacker.example", "/v2/search"),
-    ).toThrow("Firecrawl baseUrl host is not allowed");
+      firecrawlClientTesting.resolveEndpoint("http://attacker.example", "/v2/search"),
+    ).toThrow("Firecrawl baseUrl must use https for public hosts");
+  });
+
+  it("allows custom public hosts over https", () => {
+    expect(
+      firecrawlClientTesting.resolveEndpoint("https://my-firecrawl.example.com", "/v2/scrape"),
+    ).toBe("https://my-firecrawl.example.com/v2/scrape");
+    expect(
+      firecrawlClientTesting.resolveEndpoint("https://firecrawl.internal.corp:8443", "/v2/search"),
+    ).toBe("https://firecrawl.internal.corp:8443/v2/search");
+  });
+
+  it("allows http for private/local network hosts", () => {
+    expect(firecrawlClientTesting.resolveEndpoint("http://localhost:3002", "/v2/search")).toBe(
+      "http://localhost:3002/v2/search",
+    );
+    expect(firecrawlClientTesting.resolveEndpoint("http://127.0.0.1:8787", "/v2/scrape")).toBe(
+      "http://127.0.0.1:8787/v2/scrape",
+    );
+    expect(firecrawlClientTesting.resolveEndpoint("http://192.168.1.100:3002", "/v2/search")).toBe(
+      "http://192.168.1.100:3002/v2/search",
+    );
+    expect(firecrawlClientTesting.resolveEndpoint("http://10.0.0.5:3002", "/v2/scrape")).toBe(
+      "http://10.0.0.5:3002/v2/scrape",
+    );
+    expect(
+      firecrawlClientTesting.resolveEndpoint(
+        "http://host.openshell.internal:3002/v1",
+        "/v2/search",
+      ),
+    ).toBe("http://host.openshell.internal:3002/v2/search");
+    expect(firecrawlClientTesting.resolveEndpoint("http://myhost.local:3002", "/v2/scrape")).toBe(
+      "http://myhost.local:3002/v2/scrape",
+    );
   });
 
   it("respects positive numeric overrides for scrape and cache behavior", () => {

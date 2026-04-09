@@ -31,7 +31,43 @@ const SCRAPE_CACHE = new Map<
 >();
 const DEFAULT_SEARCH_COUNT = 5;
 const DEFAULT_SCRAPE_MAX_CHARS = 50_000;
-const ALLOWED_FIRECRAWL_HOSTS = new Set(["api.firecrawl.dev"]);
+
+/**
+ * Returns true when the hostname looks like a private/local network address
+ * where cleartext HTTP is acceptable (loopback, RFC 1918 IPs, mDNS .local,
+ * .internal, .localhost suffixes).
+ */
+function isPrivateOrLocalHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]") {
+    return true;
+  }
+  if (h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) {
+    return true;
+  }
+  // RFC 1918 / link-local / carrier-grade NAT IPv4 ranges
+  const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, 100.64.0.0/10
+    if (a === 10) {
+      return true;
+    }
+    if (a === 172 && b >= 16 && b <= 31) {
+      return true;
+    }
+    if (a === 192 && b === 168) {
+      return true;
+    }
+    if (a === 169 && b === 254) {
+      return true;
+    }
+    if (a === 100 && b >= 64 && b <= 127) {
+      return true;
+    }
+  }
+  return false;
+}
 
 type FirecrawlSearchItem = {
   title: string;
@@ -66,11 +102,13 @@ export type FirecrawlScrapeParams = {
 
 function resolveEndpoint(baseUrl: string, pathname: "/v2/search" | "/v2/scrape"): string {
   const url = new URL(baseUrl.trim() || "https://api.firecrawl.dev");
-  if (url.protocol !== "https:") {
-    throw new Error("Firecrawl baseUrl must use https.");
+  if (url.protocol !== "https:" && !isPrivateOrLocalHost(url.hostname)) {
+    throw new Error(
+      "Firecrawl baseUrl must use https for public hosts. Use https, or use a private/local network address with http.",
+    );
   }
-  if (!ALLOWED_FIRECRAWL_HOSTS.has(url.hostname)) {
-    throw new Error(`Firecrawl baseUrl host is not allowed: ${url.hostname}`);
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    throw new Error("Firecrawl baseUrl must use http or https.");
   }
   url.username = "";
   url.password = "";
