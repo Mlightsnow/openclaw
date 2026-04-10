@@ -355,4 +355,45 @@ describe("loadWorkspaceSkillEntries", () => {
       });
     },
   );
+
+  it("returns merged skills in a deterministic alphabetical order regardless of extraDirs order", async () => {
+    const workspaceDir = await createTempWorkspaceDir();
+    const extraDirA = await createTempWorkspaceDir();
+    const extraDirB = await createTempWorkspaceDir();
+
+    await writeSkill({
+      dir: path.join(extraDirA, "charlie"),
+      name: "charlie",
+      description: "Charlie skill",
+    });
+    await writeSkill({
+      dir: path.join(extraDirA, "alpha"),
+      name: "alpha",
+      description: "Alpha skill",
+    });
+    await writeSkill({
+      dir: path.join(extraDirB, "bravo"),
+      name: "bravo",
+      description: "Bravo skill",
+    });
+    await writeSkill({
+      dir: path.join(extraDirB, "delta"),
+      name: "delta",
+      description: "Delta skill",
+    });
+
+    const loadWithExtraDirs = (extraDirs: string[]) =>
+      loadWorkspaceSkillEntries(workspaceDir, {
+        config: { skills: { load: { extraDirs } } },
+        managedSkillsDir: path.join(workspaceDir, ".managed"),
+        bundledSkillsDir: path.join(workspaceDir, ".bundled"),
+      });
+
+    const firstOrder = loadWithExtraDirs([extraDirA, extraDirB]);
+    const swappedOrder = loadWithExtraDirs([extraDirB, extraDirA]);
+
+    const expected = ["alpha", "bravo", "charlie", "delta"];
+    expect(firstOrder.map((entry) => entry.skill.name)).toEqual(expected);
+    expect(swappedOrder.map((entry) => entry.skill.name)).toEqual(expected);
+  });
 });

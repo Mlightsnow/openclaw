@@ -471,7 +471,15 @@ function loadSkillEntries(
     merged.set(skill.name, skill);
   }
 
-  const skillEntries: SkillEntry[] = Array.from(merged.values()).map((skill) => {
+  // Sort merged skills alphabetically by name so the final order is
+  // deterministic regardless of source/extraDirs ordering. Map preserves
+  // insertion order, which would otherwise make the <available_skills> prompt
+  // section depend on which source wrote each skill first and bypass the
+  // LLM prompt cache across instances with different extraDirs orderings.
+  const sortedMergedSkills = Array.from(merged.values()).toSorted((a, b) =>
+    a.name.localeCompare(b.name),
+  );
+  const skillEntries: SkillEntry[] = sortedMergedSkills.map((skill) => {
     const frontmatter =
       readSkillFrontmatterSafe({
         rootDir: skill.baseDir,
