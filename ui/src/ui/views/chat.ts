@@ -939,7 +939,7 @@ export function renderChat(props: ChatProps) {
     <div
       class="chat-thread"
       role="log"
-      aria-live="off"
+      aria-live=${props.stream !== null || props.sending ? "off" : "polite"}
       @scroll=${props.onChatScroll}
       @click=${handleCodeBlockCopy}
     >
